@@ -6,6 +6,7 @@ import { createPuzzleEdges, createPieces } from "./pieces.js";
 import { scatterPieces, keepPiecesInView, relocateHiddenPieces } from "./placement.js";
 import { renderPieces, updatePiecePositions, setPiecesDragging } from "./pieceView.js";
 import { createDragController } from "./drag.js";
+import { applySnapping } from "./snapping.js";
 import { preventDoubleTapZoom } from "./doubleTapGuard.js";
 
 const PUZZLE_LIST_URL = "data/puzzles.json";
@@ -49,6 +50,11 @@ function bringToFront(members) {
   }
 }
 
+// 完成数（土台に固定されたピースの数）を表示する
+function updatePlacedCount() {
+  elements.placedCount.textContent = String(state.pieces.filter((piece) => piece.locked).length);
+}
+
 const drag = createDragController({
   viewport: elements.viewport,
   getContext: () => ({ pieces: state.pieces, layout: state.layout, view: state.view }),
@@ -64,8 +70,13 @@ const drag = createDragController({
   onEnd(members) {
     setPiecesDragging(state.pieceElements, members, false);
     elements.viewport.classList.remove("is-dragging");
-    const moved = relocateHiddenPieces(members, state.pieces, state.layout, state.view);
-    updatePiecePositions(state.pieceElements, [...members, ...moved], state.layout, state.view);
+    // 結合・吸着（固定）の判定。結合したグループは全体を最前面にする
+    const snap = applySnapping(members, state.pieces, state.layout, state.view);
+    if (snap.joined && snap.locked.length === 0) bringToFront(snap.members);
+    // 固定したピースは背面になり他のピースを隠さないので、隠れたピースの移動は固定しなかった場合だけ行う
+    if (snap.locked.length === 0) relocateHiddenPieces(members, state.pieces, state.layout, state.view);
+    updatePiecePositions(state.pieceElements, state.pieces, state.layout, state.view);
+    updatePlacedCount();
   },
 });
 

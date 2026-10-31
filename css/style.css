@@ -201,6 +201,15 @@ body {
   cursor: grab;
 }
 
+/* 土台に固定されたピース：影をなくし、土台にはまった平らな見た目にする。動かせないのでつかむカーソルにしない */
+.piece.is-locked {
+  filter: none;
+}
+
+.piece.is-locked .piece-outline {
+  cursor: default;
+}
+
 /* ドラッグ中：拡大はせず、影を濃くして持ち上げていることを示す */
 .piece.is-dragging {
   filter: drop-shadow(0 6px 10px var(--piece-shadow-dragging));

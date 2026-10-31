@@ -56,6 +56,7 @@ export function updatePieceElement(element, piece, layout, view) {
   const originY = view ? view.y : 0;
   element.style.transform = `translate(${piece.x - layout.piecePadding - originX}px, ${piece.y - layout.piecePadding - originY}px)`;
   element.style.zIndex = String(piece.locked ? piece.z : UNLOCKED_LAYER + piece.z);
+  element.classList.toggle("is-locked", piece.locked);
 }
 
 // elementsById：renderPieces が返すピースID → 要素の対応表
