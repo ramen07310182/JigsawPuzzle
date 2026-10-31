@@ -100,8 +100,9 @@ function createSvgElement(name, attributes) {
 }
 
 // 土台は外周の四角い枠と、ピースと同じ凹凸の境界線で描く
-// 重ね順：下地 → アシスト用レイヤー（完成画像を薄く重ねる場所。現在は空）→ 境界線 → 外周の枠
-export function renderBoard(svg, layout, edges) {
+// 重ね順：下地 → アシスト用レイヤー（完成画像を薄く重ねる。ON/OFFと濃さはCSS）→ 境界線 → 外周の枠
+// imageSrc はアシストに使う完成画像（ピースと同じ画像）。アシストは見た目だけで、判定には使わない
+export function renderBoard(svg, layout, edges, imageSrc = null) {
   const { board } = layout;
 
   svg.replaceChildren();
@@ -114,7 +115,16 @@ export function renderBoard(svg, layout, edges) {
     x: 0, y: 0, width: board.width, height: board.height,
   }));
 
-  svg.append(createSvgElement("g", { class: "board-assist" }));
+  const assist = createSvgElement("g", { class: "board-assist" });
+  if (imageSrc) {
+    assist.append(createSvgElement("image", {
+      class: "board-assist-image",
+      href: imageSrc,
+      x: 0, y: 0, width: board.width, height: board.height,
+      preserveAspectRatio: "none",
+    }));
+  }
+  svg.append(assist);
 
   svg.append(createSvgElement("path", {
     class: "board-grid",

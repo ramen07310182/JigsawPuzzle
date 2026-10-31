@@ -12,6 +12,7 @@ import { preventDoubleTapZoom } from "./doubleTapGuard.js";
 import { chooseSound, createSoundPlayer } from "./sound.js";
 import { loadSoundSettings, saveSoundSettings } from "./soundSettings.js";
 import { prepareUserImage, createUserPuzzle, getUserImageMessage } from "./userImage.js";
+import { loadAssistSettings, saveAssistSettings } from "./assistSettings.js";
 
 const PUZZLE_LIST_URL = "data/puzzles.json";
 
@@ -35,6 +36,7 @@ const elements = {
   soundVolume: document.getElementById("sound-volume"),
   imageSelect: document.getElementById("image-select"),
   pieceCountSelect: document.getElementById("piece-count-select"),
+  assistToggle: document.getElementById("assist-toggle"),
   imageFile: document.getElementById("image-file"),
 };
 
@@ -45,6 +47,8 @@ const USER_OPTION_VALUE = "user";
 const soundSettings = loadSoundSettings();
 // 効果音の読み込みは待たずにゲームを始める（読み込めなかった音は鳴らないだけ）
 const sound = createSoundPlayer({ volume: soundSettings.volume, muted: soundSettings.muted });
+// アシスト表示（おてほん）のON/OFF。前回の設定を読み込み（なければOFF）、変更するたびに保存する
+const assistSettings = loadAssistSettings();
 
 const state = {
   puzzle: null,
@@ -143,6 +147,20 @@ function changeVolume() {
   if (!Number.isFinite(volume)) return;
   soundSettings.volume = Math.min(100, Math.max(0, volume));
   sound.setVolume(soundSettings.volume);
+}
+
+// アシスト表示（おてほん）：ボタンに今の状態を表示し、土台の完成画像の表示を切り替える
+// 画像の切り替え・ピース数の変更・リセットでは変えない
+function renderAssist() {
+  elements.assistToggle.textContent = assistSettings.enabled ? "おてほん ON" : "おてほん OFF";
+  elements.assistToggle.setAttribute("aria-pressed", String(assistSettings.enabled));
+  elements.board.classList.toggle("is-assist-on", assistSettings.enabled);
+}
+
+function toggleAssist() {
+  assistSettings.enabled = !assistSettings.enabled;
+  renderAssist();
+  saveAssistSettings(assistSettings);
 }
 
 // ブラウザの自動再生制限のため、最初のユーザー操作で音声を使える状態にする
@@ -309,7 +327,8 @@ function applyPuzzle(puzzle, image, grid) {
   // 凹凸の形は画像IDと列数・行数から決まる（createPuzzleEdges）
   state.layout = computeLayout(image.naturalWidth, image.naturalHeight, grid.cols, grid.rows);
   const edges = createPuzzleEdges(puzzle, state.layout);
-  renderBoard(elements.board, state.layout, edges);
+  // アシスト用の完成画像も、新しい画像で描き直す（ON/OFFの状態は土台のクラスで保つ）
+  renderBoard(elements.board, state.layout, edges, image.src);
 
   state.pieces = createPieces(state.layout, edges);
   state.nextZ = Math.max(...state.pieces.map((piece) => piece.z)) + 1;
@@ -435,6 +454,8 @@ async function init() {
   elements.preview.addEventListener("click", closePreview);
   elements.complete.addEventListener("click", closeCompletion);
   elements.restartButton.addEventListener("click", confirmRestart);
+  renderAssist();
+  elements.assistToggle.addEventListener("click", toggleAssist);
   renderSoundSettings();
   elements.soundToggle.addEventListener("click", toggleMute);
   elements.soundVolume.addEventListener("input", changeVolume);

@@ -161,6 +161,18 @@ body {
   fill: var(--board-bg);
 }
 
+/* アシスト表示（おてほん）：土台に完成画像を薄く重ねる。下地と境界線の間にあり、ONでも境界線が見える
+   見た目だけの補助なので、操作（当たり判定）には使わない。濃さは実機で確認して調整する */
+.board-assist {
+  display: none;
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+.board.is-assist-on .board-assist {
+  display: inline;
+}
+
 .board-grid {
   fill: none;
   stroke: var(--board-grid);
