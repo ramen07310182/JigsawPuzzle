@@ -24,8 +24,14 @@
       <span id="puzzle-name" class="puzzle-name">読み込み中…</span>
       <span class="progress">完成 <span id="placed-count">0</span> / <span id="total-count">0</span></span>
     </div>
-    <!-- 画像切り替え・セーブ／ロード・アシスト・音量は、各開発手順でここに追加する -->
+    <!-- 画像切り替え・セーブ／ロード・アシストは、各開発手順でここに追加する -->
     <div id="panel-controls" class="panel-controls">
+      <!-- 効果音のON／OFF（今の状態を表示する）と音量（すべての効果音で共通） -->
+      <button id="sound-toggle" class="panel-button" type="button" aria-pressed="true">おと ON</button>
+      <label class="volume-control">
+        <span class="volume-label">おとの おおきさ</span>
+        <input id="sound-volume" class="volume-slider" type="range" min="0" max="100" step="1" value="50">
+      </label>
       <!-- 開始直後・プレイ中・完成後のいつでも使える -->
       <button id="restart-button" class="panel-button" type="button">さいしょから</button>
     </div>

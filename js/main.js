@@ -9,6 +9,8 @@ import { createDragController } from "./drag.js";
 import { applySnapping } from "./snapping.js";
 import { isPuzzleComplete, resetPieces } from "./puzzleState.js";
 import { preventDoubleTapZoom } from "./doubleTapGuard.js";
+import { chooseSound, createSoundPlayer } from "./sound.js";
+import { loadSoundSettings, saveSoundSettings } from "./soundSettings.js";
 
 const PUZZLE_LIST_URL = "data/puzzles.json";
 
@@ -28,7 +30,14 @@ const elements = {
   message: document.getElementById("message"),
   complete: document.getElementById("complete"),
   restartButton: document.getElementById("restart-button"),
+  soundToggle: document.getElementById("sound-toggle"),
+  soundVolume: document.getElementById("sound-volume"),
 };
+
+// 効果音の設定（音量0〜100・ミュート）。前回の設定を読み込み、変更するたびに保存する
+const soundSettings = loadSoundSettings();
+// 効果音の読み込みは待たずにゲームを始める（読み込めなかった音は鳴らないだけ）
+const sound = createSoundPlayer({ volume: soundSettings.volume, muted: soundSettings.muted });
 
 const state = {
   puzzle: null,
@@ -90,9 +99,48 @@ const drag = createDragController({
 });
 
 // ドロップ1回の結果（結合した・固定した・完成した）をまとめて扱う
-// 手順6の効果音はここに追加する（完成したときは完成音を優先し、結合音・吸着音は重ねない）
-function handleGameEvents({ completed }) {
+// 効果音は1回のドロップにつき1つだけ（完成 → 完成音、固定 → 吸着音、結合だけ → 結合音）
+function handleGameEvents({ joined, locked, completed }) {
+  const soundName = chooseSound({ joined, locked, completed });
+  // 完成したときは、鳴っている効果音を止めてから完成音だけを鳴らす
+  if (soundName === "complete") sound.stopAll();
+  if (soundName) sound.play(soundName);
   if (completed) showCompletion();
+}
+
+// 効果音のON／OFFボタンと音量スライダーに、今の設定を表示する
+function renderSoundSettings() {
+  elements.soundToggle.textContent = soundSettings.muted ? "おと OFF" : "おと ON";
+  elements.soundToggle.setAttribute("aria-pressed", String(!soundSettings.muted));
+  elements.soundVolume.value = String(soundSettings.volume);
+}
+
+function toggleMute() {
+  soundSettings.muted = !soundSettings.muted;
+  sound.setMuted(soundSettings.muted);
+  renderSoundSettings();
+  saveSoundSettings(soundSettings);
+}
+
+// スライダーを動かしている間もすぐに反映する。ミュート中はミュートのまま（解除したときにこの音量で鳴る）
+function changeVolume() {
+  const volume = Math.round(Number(elements.soundVolume.value));
+  if (!Number.isFinite(volume)) return;
+  soundSettings.volume = Math.min(100, Math.max(0, volume));
+  sound.setVolume(soundSettings.volume);
+}
+
+// ブラウザの自動再生制限のため、最初のユーザー操作で音声を使える状態にする
+// 操作の既定動作は止めない。使える状態になったら監視をやめる
+const UNLOCK_EVENTS = ["pointerdown", "pointerup", "touchend", "keydown"];
+function unlockSound() {
+  sound.unlock();
+  if (!sound.isUnlocked()) return;
+  for (const type of UNLOCK_EVENTS) window.removeEventListener(type, unlockSound, true);
+}
+function watchSoundUnlock() {
+  if (sound.isUnlocked()) return;
+  for (const type of UNLOCK_EVENTS) window.addEventListener(type, unlockSound, { capture: true, passive: true });
 }
 
 // 完成演出。表示中は背後の画面を inert にして操作できなくする。閉じた後も完成した画像はそのまま表示される
@@ -125,6 +173,7 @@ function confirmRestart() {
 function restartPuzzle() {
   if (!state.layout || !state.view) return;
   drag.cancel();
+  sound.stopAll();
   closeCompletion();
   state.nextZ = resetPieces(state.pieces, state.layout, state.view);
   state.completed = false;
@@ -252,6 +301,14 @@ async function init() {
   elements.preview.addEventListener("click", closePreview);
   elements.complete.addEventListener("click", closeCompletion);
   elements.restartButton.addEventListener("click", confirmRestart);
+  renderSoundSettings();
+  elements.soundToggle.addEventListener("click", toggleMute);
+  elements.soundVolume.addEventListener("input", changeVolume);
+  elements.soundVolume.addEventListener("change", () => {
+    changeVolume();
+    saveSoundSettings(soundSettings);
+  });
+  watchSoundUnlock();
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closePreview();
