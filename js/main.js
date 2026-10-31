@@ -97,7 +97,6 @@ function handleGameEvents({ completed }) {
 
 // 完成演出。表示中は背後の画面を inert にして操作できなくする。閉じた後も完成した画像はそのまま表示される
 function showCompletion() {
-  elements.restartButton.hidden = false;
   elements.complete.hidden = false;
   elements.panel.inert = true;
   elements.viewport.inert = true;
@@ -109,25 +108,26 @@ function closeCompletion() {
   elements.complete.hidden = true;
   elements.panel.inert = false;
   elements.viewport.inert = false;
-  if (!elements.restartButton.hidden) elements.restartButton.focus();
+  elements.restartButton.focus();
 }
 
-// 「最初から遊ぶ」：確認して承認された場合だけ、ピースを最初の状態に戻す（キャンセルなら完成状態のまま）
+// 「最初から遊ぶ」：開始直後・プレイ中・完成後のいつでも使える
+// 確認して承認された場合だけ、ピースを最初の状態に戻す（キャンセルなら何も変えない）
 function confirmRestart() {
-  if (!window.confirm("最初から遊びますか？\n今の完成した状態は元に戻せません。")) return;
+  // パズルの読み込み中など、まだピースが置かれていないときは何もしない
+  if (!state.layout || !state.view) return;
+  if (!window.confirm("さいしょから やりなおす？")) return;
   restartPuzzle();
 }
 
 // ピースの位置・結合状態・固定状態・表示順を初期化し、最初と同じ方法でランダムに置き直す
 // 形・画像・正解位置は変えない。完成数を0に戻し、再びドラッグできる状態にする
 function restartPuzzle() {
-  // 完成した後にだけ呼ばれるので、表示範囲は決まっている
   if (!state.layout || !state.view) return;
   drag.cancel();
   closeCompletion();
   state.nextZ = resetPieces(state.pieces, state.layout, state.view);
   state.completed = false;
-  elements.restartButton.hidden = true;
   updatePiecePositions(state.pieceElements, state.pieces, state.layout, state.view);
   updatePlacedCount();
 }
@@ -202,7 +202,6 @@ async function showPuzzle(puzzle) {
   state.completed = false;
   closePreview();
   closeCompletion();
-  elements.restartButton.hidden = true;
   elements.pieces.replaceChildren();
   elements.workArea.hidden = true;
   elements.thumbnailButton.hidden = true;
