@@ -6,6 +6,7 @@ import { createPuzzleEdges, createPieces } from "./pieces.js";
 import { scatterPieces, keepPiecesInView, relocateHiddenPieces } from "./placement.js";
 import { renderPieces, updatePiecePositions, setPiecesDragging } from "./pieceView.js";
 import { createDragController } from "./drag.js";
+import { preventDoubleTapZoom } from "./doubleTapGuard.js";
 
 const PUZZLE_LIST_URL = "data/puzzles.json";
 
@@ -169,6 +170,8 @@ async function showPuzzle(puzzle) {
 
 async function init() {
   new ResizeObserver(updateLayout).observe(elements.viewport);
+  // iPad Safari のダブルタップズームを、作業エリアの中だけ打ち消す
+  preventDoubleTapZoom(elements.viewport);
 
   elements.thumbnailButton.addEventListener("click", openPreview);
   elements.preview.addEventListener("click", closePreview);
