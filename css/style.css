@@ -324,6 +324,10 @@ body {
   border-radius: 6px;
 }
 
+.piece-count-select {
+  width: 7em;
+}
+
 .image-select:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
@@ -422,7 +426,8 @@ body {
   }
 
   /* 右側の縦長パネルでは、パネル幅いっぱいにする（狭い画面でもパネルからはみ出さない） */
-  .image-select {
+  .image-select,
+  .piece-count-select {
     width: 100%;
   }
 

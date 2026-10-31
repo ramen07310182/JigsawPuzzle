@@ -28,6 +28,12 @@
     <div id="panel-controls" class="panel-controls">
       <!-- 画像の切り替え（サンプルと、さいごに えらんだ がぞう）。選んだ画像は端末内だけで使い、送信しない -->
       <select id="image-select" class="image-select" aria-label="がぞうを きりかえる"></select>
+      <!-- ピース数（どの画像でも共通。変えると今の画像で作り直す） -->
+      <select id="piece-count-select" class="image-select piece-count-select" aria-label="ピースの かず">
+        <option value="9">9ピース</option>
+        <option value="30">30ピース</option>
+        <option value="70">70ピース</option>
+      </select>
       <label class="panel-button file-button">
         がぞうを えらぶ
         <input id="image-file" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp">

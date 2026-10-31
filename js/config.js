@@ -1,5 +1,16 @@
 // パズル設定（data/puzzles.json）の読み込みと検証
 
+// 選べるピース数と、その列数・行数（どの画像でも共通）。最初は先頭（9ピース）
+export const PIECE_COUNT_OPTIONS = Object.freeze([
+  Object.freeze({ count: 9, cols: 3, rows: 3 }),
+  Object.freeze({ count: 30, cols: 6, rows: 5 }),
+  Object.freeze({ count: 70, cols: 10, rows: 7 }),
+]);
+
+export function findPieceCountOption(count) {
+  return PIECE_COUNT_OPTIONS.find((option) => option.count === Number(count)) ?? null;
+}
+
 function isPositiveInteger(value) {
   return Number.isInteger(value) && value > 0;
 }
@@ -40,6 +51,7 @@ export async function loadPuzzleList(url) {
       return;
     }
     seenIds.add(entry.id);
+    // cols・rows は設定として読み込むが、実際に遊ぶピース数はピース数のリストボックスで選ぶ（PIECE_COUNT_OPTIONS）
     puzzles.push({
       // 画像の種類（開発者が用意した画像）。ユーザーが選んだ画像は "user"（userImage.js）
       source: "developer",

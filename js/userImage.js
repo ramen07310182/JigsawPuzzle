@@ -9,7 +9,8 @@ export const MAX_LONG_SIDE = 2048;
 export const MAX_ASPECT_RATIO = 2;
 // 短辺の下限（px）。これより小さい画像はピースが小さすぎるため使わない
 export const MIN_SHORT_SIDE = 200;
-// ユーザーが選んだ画像の表示名とピース数（今回は3×3の9ピースで固定）
+// ユーザーが選んだ画像の表示名と、画像の設定としての列数・行数
+// （実際に遊ぶピース数は、ピース数のリストボックスで選んだ値を使う。main.js の selectedGrid）
 export const USER_PUZZLE_NAME = "えらんだ がぞう";
 export const USER_PUZZLE_COLS = 3;
 export const USER_PUZZLE_ROWS = 3;

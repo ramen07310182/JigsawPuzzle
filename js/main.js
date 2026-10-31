@@ -1,6 +1,6 @@
 // 起動処理：設定と画像を読み込み、土台とピースを表示する。ピースのドラッグ操作を組み込む
 
-import { loadPuzzleList } from "./config.js";
+import { loadPuzzleList, PIECE_COUNT_OPTIONS, findPieceCountOption } from "./config.js";
 import { computeLayout, computeView, applyView, placeBoard, renderBoard } from "./board.js";
 import { createPuzzleEdges, createPieces } from "./pieces.js";
 import { scatterPieces, keepPiecesInView, relocateHiddenPieces } from "./placement.js";
@@ -34,6 +34,7 @@ const elements = {
   soundToggle: document.getElementById("sound-toggle"),
   soundVolume: document.getElementById("sound-volume"),
   imageSelect: document.getElementById("image-select"),
+  pieceCountSelect: document.getElementById("piece-count-select"),
   imageFile: document.getElementById("image-file"),
 };
 
@@ -65,6 +66,8 @@ const state = {
   userPuzzle: null,
   // 画像の読み込みの番号。短時間に何度も選んだ場合、さいごの読み込みだけを反映する
   loadToken: 0,
+  // 今のパズルのピース数（列数・行数）。どの画像でも共通（画像の設定の cols・rows より優先する）
+  grid: PIECE_COUNT_OPTIONS[0],
 };
 
 // ピース・グループを最前面にする。グループ内の重なり順は保つ
@@ -253,9 +256,15 @@ function updateLayout() {
   drag.handleViewChange();
 }
 
-// 画像を読み込んでから、今のパズルと入れ替える
-// 読み込みに失敗した場合や、その間に別の画像が選ばれた場合は今のパズルを残す。入れ替えたら true を返す
-async function showPuzzle(puzzle) {
+// ピース数のリストボックスで、いま選ばれているピース数（列数・行数）
+// 変更の途中（読み込み中）でも、さいごに選んだ値を使う。キャンセル・失敗したときは今のパズルの値に戻す
+function selectedGrid() {
+  return findPieceCountOption(elements.pieceCountSelect.value) ?? state.grid;
+}
+
+// 画像を読み込んでから、今のパズルと入れ替える。grid はピース数（列数・行数）
+// 読み込みに失敗した場合や、その間に別の画像・ピース数が選ばれた場合は今のパズルを残す。入れ替えたら true を返す
+async function showPuzzle(puzzle, grid = selectedGrid()) {
   const token = ++state.loadToken;
   let image;
   try {
@@ -268,34 +277,37 @@ async function showPuzzle(puzzle) {
     } else {
       // 最初の画像を読み込めなかった場合（遊べるパズルがまだない）
       elements.puzzleName.textContent = puzzle.name;
-      elements.totalCount.textContent = String(puzzle.cols * puzzle.rows);
+      elements.totalCount.textContent = String(grid.count);
       showError(error.message);
     }
+    renderPieceCountSelect();
     return false;
   }
   if (token !== state.loadToken) return false;
-  applyPuzzle(puzzle, image);
+  applyPuzzle(puzzle, image, grid);
   return true;
 }
 
 // 読み込んだ画像でパズルを作り直す。ピース・結合・固定・完成状態・表示順・鳴っている効果音を初期化する
 // 音量・ミュートの設定はそのまま
-function applyPuzzle(puzzle, image) {
+function applyPuzzle(puzzle, image, grid) {
   drag.cancel();
   sound.stopAll();
   closePreview();
   closeCompletion();
   state.puzzle = puzzle;
+  state.grid = grid;
   state.view = null;
   state.completed = false;
   elements.message.hidden = true;
   elements.puzzleName.textContent = puzzle.name;
   elements.placedCount.textContent = "0";
-  elements.totalCount.textContent = String(puzzle.cols * puzzle.rows);
+  elements.totalCount.textContent = String(grid.count);
   elements.thumbnail.src = image.src;
   elements.thumbnailButton.hidden = false;
 
-  state.layout = computeLayout(image.naturalWidth, image.naturalHeight, puzzle.cols, puzzle.rows);
+  // 凹凸の形は画像IDと列数・行数から決まる（createPuzzleEdges）
+  state.layout = computeLayout(image.naturalWidth, image.naturalHeight, grid.cols, grid.rows);
   const edges = createPuzzleEdges(puzzle, state.layout);
   renderBoard(elements.board, state.layout, edges);
 
@@ -306,6 +318,37 @@ function applyPuzzle(puzzle, image) {
   state.needsScatter = true;
   updateLayout();
   renderImageSelect();
+  renderPieceCountSelect();
+}
+
+// ピース数のリストボックスを、今のパズルのピース数にする
+function renderPieceCountSelect() {
+  elements.pieceCountSelect.value = String(state.grid.count);
+}
+
+// ピース数を変える：今の画像で、新しいピース数のパズルを作り直す
+async function changePieceCount() {
+  const grid = findPieceCountOption(elements.pieceCountSelect.value);
+  if (!grid) {
+    renderPieceCountSelect();
+    return;
+  }
+  // まだパズルがない（最初の画像を読み込めなかった）場合は、次に読み込む画像で使う
+  if (!state.puzzle) {
+    state.grid = grid;
+    return;
+  }
+  if (grid === state.grid) {
+    // 今のピース数に戻した場合は、読み込み中の別のピース数も反映しない（さいごの操作だけを反映する）
+    state.loadToken += 1;
+    renderPieceCountSelect();
+    return;
+  }
+  if (state.pieces.some((piece) => piece.locked) && !window.confirm("いまの パズルを やめて、ピースの かずを かえる？")) {
+    renderPieceCountSelect();
+    return;
+  }
+  await showPuzzle(state.puzzle, grid);
 }
 
 // 固定済みのピースがあるときだけ、画像を変える前に確認する
@@ -401,6 +444,8 @@ async function init() {
   });
   watchSoundUnlock();
   elements.imageSelect.addEventListener("change", changeImageFromList);
+  elements.pieceCountSelect.addEventListener("change", changePieceCount);
+  renderPieceCountSelect();
   elements.imageFile.addEventListener("change", () => {
     const file = elements.imageFile.files?.[0];
     // 同じファイルをもう一度選んだときも change が起きるように空にする（キャンセル時は何もしない）
