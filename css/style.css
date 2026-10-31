@@ -32,6 +32,11 @@ body {
   height: 100%;
 }
 
+/* ページ全体：ダブルタップによる拡大だけを止める（スクロールとピンチズームは許可。iPad Safari対策） */
+html {
+  touch-action: manipulation;
+}
+
 /* 縦長の画面：操作パネルを上部、作業エリアをその下に置く */
 body {
   display: flex;
@@ -49,6 +54,8 @@ body {
 .panel {
   order: -1;
   flex: none;
+  /* ダブルタップによる拡大だけを止める（パネル内のスクロールとピンチズームは許可） */
+  touch-action: manipulation;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -132,6 +139,14 @@ body {
   left: 0;
   top: 0;
   transform-origin: 0 0;
+}
+
+/* 作業エリアの中（拡大縮小された要素内のピース）にも明示し、iPad Safariでタッチの受け付け領域に
+   確実に反映させる（.viewport と同じく、ドラッグのためにスクロール・ズームのジェスチャーを止める） */
+.work-area,
+.pieces,
+.piece {
+  touch-action: none;
 }
 
 .board {
