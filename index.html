@@ -38,6 +38,8 @@
         がぞうを えらぶ
         <input id="image-file" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp">
       </label>
+      <!-- 画像の保存先（IndexedDB）が使えないときだけ表示する（一時プレイ） -->
+      <p id="storage-notice" class="storage-notice" role="status" hidden>いまは ほぞん できません（よみこみなおすと きえるよ）</p>
       <!-- アシスト表示（土台に完成画像を薄く表示する）のON／OFF。今の状態を表示する -->
       <button id="assist-toggle" class="panel-button" type="button" aria-pressed="false">おてほん OFF</button>
       <!-- 効果音のON／OFF（今の状態を表示する）と音量（すべての効果音で共通） -->

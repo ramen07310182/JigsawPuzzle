@@ -11,7 +11,10 @@ import { isPuzzleComplete, resetPieces } from "./puzzleState.js";
 import { preventDoubleTapZoom } from "./doubleTapGuard.js";
 import { chooseSound, createSoundPlayer } from "./sound.js";
 import { loadSoundSettings, saveSoundSettings } from "./soundSettings.js";
-import { prepareUserImage, createUserPuzzle, getUserImageMessage } from "./userImage.js";
+import { prepareUserImage, createUserPuzzle, createUserImageId, getUserImageMessage } from "./userImage.js";
+import {
+  openImageStore, requestPersistentStorage, saveUserImage, touchUserImage, STORAGE_MESSAGES,
+} from "./imageStore.js";
 import { loadAssistSettings, saveAssistSettings } from "./assistSettings.js";
 
 const PUZZLE_LIST_URL = "data/puzzles.json";
@@ -38,6 +41,7 @@ const elements = {
   pieceCountSelect: document.getElementById("piece-count-select"),
   assistToggle: document.getElementById("assist-toggle"),
   imageFile: document.getElementById("image-file"),
+  storageNotice: document.getElementById("storage-notice"),
 };
 
 // リストボックスで、ユーザーが選んだ画像を表す値
@@ -49,6 +53,20 @@ const soundSettings = loadSoundSettings();
 const sound = createSoundPlayer({ volume: soundSettings.volume, muted: soundSettings.muted });
 // アシスト表示（おてほん）のON/OFF。前回の設定を読み込み（なければOFF）、変更するたびに保存する
 const assistSettings = loadAssistSettings();
+
+// 画像の保存先（IndexedDB）。開くのを待たずにゲームを始める。開けない・使えなくなった場合は null（一時プレイ）
+let imageStore = null;
+const imageStoreReady = openImageStore({ onUnavailable: () => setImageStore(null) }).then((store) => {
+  setImageStore(store);
+  if (store) requestPersistentStorage();
+  return store;
+});
+
+function setImageStore(store) {
+  imageStore = store;
+  // 保存できない状態（一時プレイ）では、パネルに知らせる
+  elements.storageNotice.hidden = Boolean(store);
+}
 
 const state = {
   puzzle: null,
@@ -66,7 +84,7 @@ const state = {
   completed: false,
   // 開発者が用意した画像の一覧（data/puzzles.json）
   developerPuzzles: [],
-  // さいごに選んだユーザーの画像（1枚だけ。再読み込みで消える）
+  // さいごに選んだユーザーの画像（リストボックスに出すのは1枚だけ。手順11で一覧に変える）
   userPuzzle: null,
   // 画像の読み込みの番号。短時間に何度も選んだ場合、さいごの読み込みだけを反映する
   loadToken: 0,
@@ -407,31 +425,87 @@ async function changeImageFromList() {
 }
 
 // 端末から選んだ画像でパズルを作る。画像は端末内だけで処理し、外部へは送信しない
+// 順番：加工 → （今と同じ画像なら何もしない）→ 確認 → 保存（IndexedDB。完了を待つ）→ 画像の読み込み → 切り替え
+// 各段階の前後で、さいごの選択か（loadToken）を確かめ、古い選択は今のパズルを上書きしない
 async function selectUserImage(file) {
   const token = ++state.loadToken;
+  const isCurrent = () => token === state.loadToken;
   let prepared;
   try {
     prepared = await prepareUserImage(file);
   } catch (error) {
-    if (token !== state.loadToken) return;
+    if (!isCurrent()) return;
     console.warn("選んだ画像を使えませんでした", error);
     window.alert(getUserImageMessage(error));
     return;
   }
-  // 準備中に別の画像が選ばれた場合や、確認でキャンセルした場合は使わない
-  if (token !== state.loadToken || !confirmImageChange()) {
-    URL.revokeObjectURL(prepared.url);
+  if (!isCurrent()) return;
+
+  // 今遊んでいる画像と同じ画像なら、作り直さず今の進行（位置・結合・固定）をそのまま残す
+  if (prepared.hash && state.puzzle?.hash === prepared.hash) {
+    renderImageSelect();
     return;
   }
-  const puzzle = createUserPuzzle(prepared.url);
+  // 確認は保存の前に行う。キャンセルなら保存もしない
+  if (!confirmImageChange()) return;
+
+  const store = await imageStoreReady.then(() => imageStore);
+  if (!isCurrent()) return;
+
+  let imageId;
+  let jpeg = prepared.blob;
+  let stored = false;
+  if (store && prepared.hash) {
+    let result;
+    try {
+      result = await saveUserImage(store, {
+        hash: prepared.hash,
+        jpeg: prepared.blob,
+        thumbnail: prepared.thumbnail,
+        width: prepared.width,
+        height: prepared.height,
+      }, { createId: createUserImageId });
+    } catch (error) {
+      // 書き込みに失敗した（容量不足など）：成功として扱わず、切り替えない（一時プレイにもしない）
+      console.warn("画像を保存できませんでした", error);
+      if (isCurrent()) window.alert(STORAGE_MESSAGES.failed);
+      return;
+    }
+    if (result.status === "limit") {
+      // 10枚保存済み：保存も切り替えもしない。既存の画像は消さない
+      if (isCurrent()) window.alert(STORAGE_MESSAGES.limit);
+      return;
+    }
+    if (!isCurrent()) {
+      // 保存中に別の画像が選ばれた：この画像は保存されたが、表示はしない（手順11の一覧から選べる）
+      if (result.status === "saved") console.info("前に選んだ画像は保存しましたが、表示はしていません", result.record.id);
+      return;
+    }
+    if (result.status === "existing") touchUserImage(store, result.record.id);
+    imageId = result.record.id;
+    jpeg = result.record.jpeg;
+    stored = true;
+  }
+
+  // 前に選んだ画像（今はサンプルを表示中など）と同じ保存画像なら、その URL をそのまま使う（読み込み直さない）
+  if (imageId && state.userPuzzle?.id === imageId) {
+    await showPuzzle(state.userPuzzle);
+    renderImageSelect();
+    return;
+  }
+
+  const url = URL.createObjectURL(jpeg);
+  const puzzle = createUserPuzzle(url, { id: imageId, hash: prepared.hash, stored });
+  // 表示（画像の読み込み）に失敗した、または別の操作で中断された場合は、作った URL を解放して今のパズルを残す
   if (!(await showPuzzle(puzzle))) {
-    URL.revokeObjectURL(prepared.url);
+    URL.revokeObjectURL(url);
+    if (stored) console.warn("画像は保存済みですが、表示できませんでした", imageId);
     return;
   }
   // 入れ替えが済んでから、前に選んだ画像の URL を解放する（今の画像の URL は解放しない）
   const previous = state.userPuzzle;
   state.userPuzzle = puzzle;
-  if (previous) URL.revokeObjectURL(previous.image);
+  if (previous && previous.image !== puzzle.image) URL.revokeObjectURL(previous.image);
   renderImageSelect();
 }
 
