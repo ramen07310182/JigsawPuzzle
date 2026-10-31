@@ -14,6 +14,9 @@
   --error-border: #e2a59c;
   --focus-ring: #2f6fb0;
   --preview-backdrop: rgba(0, 0, 0, 0.82);
+  --complete-backdrop: rgba(0, 0, 0, 0.4);
+  --complete-text: #ffffff;
+  --button-bg: #ffffff;
   --piece-edge: rgba(0, 0, 0, 0.35);
   --piece-shadow: rgba(0, 0, 0, 0.3);
   --piece-shadow-dragging: rgba(0, 0, 0, 0.5);
@@ -254,6 +257,56 @@ body {
 
 .preview[hidden] {
   display: none;
+}
+
+/* 完成演出：背景をやや暗くし（黒40%）、中央に大きく「できた！！！」を表示する。どこを押しても閉じる */
+.complete {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--complete-backdrop);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.complete[hidden] {
+  display: none;
+}
+
+.complete:focus {
+  outline: none;
+}
+
+.complete-message {
+  margin: 0;
+  color: var(--complete-text);
+  font-size: clamp(48px, 14vmin, 160px);
+  font-weight: bold;
+  text-align: center;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 操作パネルのボタン（最初から遊ぶ など） */
+.panel-button {
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 8px 14px;
+  color: var(--text);
+  background: var(--button-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.panel-button:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .preview:focus {

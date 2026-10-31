@@ -7,6 +7,7 @@ import { scatterPieces, keepPiecesInView, relocateHiddenPieces } from "./placeme
 import { renderPieces, updatePiecePositions, setPiecesDragging } from "./pieceView.js";
 import { createDragController } from "./drag.js";
 import { applySnapping } from "./snapping.js";
+import { isPuzzleComplete, resetPieces } from "./puzzleState.js";
 import { preventDoubleTapZoom } from "./doubleTapGuard.js";
 
 const PUZZLE_LIST_URL = "data/puzzles.json";
@@ -25,6 +26,8 @@ const elements = {
   board: document.getElementById("board"),
   pieces: document.getElementById("pieces"),
   message: document.getElementById("message"),
+  complete: document.getElementById("complete"),
+  restartButton: document.getElementById("restart-button"),
 };
 
 const state = {
@@ -39,6 +42,8 @@ const state = {
   view: null,
   // 初期配置がまだ済んでいない（表示領域の大きさが決まる前に読み込んだ場合）
   needsScatter: false,
+  // 完成済み（完成演出を1回の完成につき1回だけにするため。「最初から遊ぶ」で false に戻す）
+  completed: false,
 };
 
 // ピース・グループを最前面にする。グループ内の重なり順は保つ
@@ -77,8 +82,55 @@ const drag = createDragController({
     if (snap.locked.length === 0) relocateHiddenPieces(members, state.pieces, state.layout, state.view);
     updatePiecePositions(state.pieceElements, state.pieces, state.layout, state.view);
     updatePlacedCount();
+    // 完成判定：固定が起きたときだけ調べる。完成済みなら二重に扱わない
+    const completed = snap.locked.length > 0 && !state.completed && isPuzzleComplete(state.pieces);
+    if (completed) state.completed = true;
+    handleGameEvents({ joined: snap.joined, locked: snap.locked, completed });
   },
 });
+
+// ドロップ1回の結果（結合した・固定した・完成した）をまとめて扱う
+// 手順6の効果音はここに追加する（完成したときは完成音を優先し、結合音・吸着音は重ねない）
+function handleGameEvents({ completed }) {
+  if (completed) showCompletion();
+}
+
+// 完成演出。表示中は背後の画面を inert にして操作できなくする。閉じた後も完成した画像はそのまま表示される
+function showCompletion() {
+  elements.restartButton.hidden = false;
+  elements.complete.hidden = false;
+  elements.panel.inert = true;
+  elements.viewport.inert = true;
+  elements.complete.focus();
+}
+
+function closeCompletion() {
+  if (elements.complete.hidden) return;
+  elements.complete.hidden = true;
+  elements.panel.inert = false;
+  elements.viewport.inert = false;
+  if (!elements.restartButton.hidden) elements.restartButton.focus();
+}
+
+// 「最初から遊ぶ」：確認して承認された場合だけ、ピースを最初の状態に戻す（キャンセルなら完成状態のまま）
+function confirmRestart() {
+  if (!window.confirm("最初から遊びますか？\n今の完成した状態は元に戻せません。")) return;
+  restartPuzzle();
+}
+
+// ピースの位置・結合状態・固定状態・表示順を初期化し、最初と同じ方法でランダムに置き直す
+// 形・画像・正解位置は変えない。完成数を0に戻し、再びドラッグできる状態にする
+function restartPuzzle() {
+  // 完成した後にだけ呼ばれるので、表示範囲は決まっている
+  if (!state.layout || !state.view) return;
+  drag.cancel();
+  closeCompletion();
+  state.nextZ = resetPieces(state.pieces, state.layout, state.view);
+  state.completed = false;
+  elements.restartButton.hidden = true;
+  updatePiecePositions(state.pieceElements, state.pieces, state.layout, state.view);
+  updatePlacedCount();
+}
 
 function showError(text) {
   elements.message.textContent = text;
@@ -147,7 +199,10 @@ async function showPuzzle(puzzle) {
   state.pieces = [];
   state.pieceElements = new Map();
   state.view = null;
+  state.completed = false;
   closePreview();
+  closeCompletion();
+  elements.restartButton.hidden = true;
   elements.pieces.replaceChildren();
   elements.workArea.hidden = true;
   elements.thumbnailButton.hidden = true;
@@ -196,8 +251,13 @@ async function init() {
 
   elements.thumbnailButton.addEventListener("click", openPreview);
   elements.preview.addEventListener("click", closePreview);
+  elements.complete.addEventListener("click", closeCompletion);
+  elements.restartButton.addEventListener("click", confirmRestart);
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closePreview();
+    if (event.key === "Escape") {
+      closePreview();
+      closeCompletion();
+    }
   });
   // ウィンドウからフォーカスが外れた（指を離した通知が届かない可能性がある）場合はドラッグを終了する
   window.addEventListener("blur", () => drag.cancel());
