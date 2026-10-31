@@ -188,6 +188,8 @@ body {
 /* ドラッグ中：拡大はせず、影を濃くして持ち上げていることを示す */
 .piece.is-dragging {
   filter: drop-shadow(0 6px 10px var(--piece-shadow-dragging));
+  /* ドラッグ中だけ専用の合成レイヤーにし、移動のたびに影を描き直さないようにする */
+  will-change: transform;
 }
 
 .viewport.is-dragging,
