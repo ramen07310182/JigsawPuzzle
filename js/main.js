@@ -1,7 +1,7 @@
 // 起動処理：設定と画像を読み込み、土台とピースを表示する。ピースのドラッグ操作を組み込む
 
 import { loadPuzzleList } from "./config.js";
-import { computeLayout, computeView, applyView, renderBoard } from "./board.js";
+import { computeLayout, computeView, applyView, placeBoard, renderBoard } from "./board.js";
 import { createPuzzleEdges, createPieces } from "./pieces.js";
 import { scatterPieces, keepPiecesInView, relocateHiddenPieces } from "./placement.js";
 import { renderPieces, updatePiecePositions, setPiecesDragging } from "./pieceView.js";
@@ -54,17 +54,17 @@ const drag = createDragController({
   onStart(members) {
     bringToFront(members);
     setPiecesDragging(state.pieceElements, members, true);
-    updatePiecePositions(state.pieceElements, members, state.layout);
+    updatePiecePositions(state.pieceElements, members, state.layout, state.view);
     elements.viewport.classList.add("is-dragging");
   },
   onMove(members) {
-    updatePiecePositions(state.pieceElements, members, state.layout);
+    updatePiecePositions(state.pieceElements, members, state.layout, state.view);
   },
   onEnd(members) {
     setPiecesDragging(state.pieceElements, members, false);
     elements.viewport.classList.remove("is-dragging");
     const moved = relocateHiddenPieces(members, state.pieces, state.layout, state.view);
-    updatePiecePositions(state.pieceElements, [...members, ...moved], state.layout);
+    updatePiecePositions(state.pieceElements, [...members, ...moved], state.layout, state.view);
   },
 });
 
@@ -115,6 +115,7 @@ function updateLayout() {
 
   state.view = view;
   applyView(elements.workArea, view);
+  placeBoard(elements.board, state.layout, view);
   elements.workArea.hidden = false;
   if (state.needsScatter) {
     scatterPieces(state.pieces, state.layout, view);
@@ -123,7 +124,7 @@ function updateLayout() {
     // ドラッグ中のグループは押し戻さず、ドラッグ処理側で新しい表示範囲に合わせる
     keepPiecesInView(state.pieces, state.layout, view, { excludeGroupId: drag.draggingGroupId() });
   }
-  updatePiecePositions(state.pieceElements, state.pieces, state.layout);
+  updatePiecePositions(state.pieceElements, state.pieces, state.layout, view);
   drag.handleViewChange();
 }
 

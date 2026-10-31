@@ -125,7 +125,8 @@ body {
   -webkit-user-select: none;
 }
 
-/* 作業エリアの中身は土台の左上を原点とする論理座標で置き、transformで表示範囲・倍率に合わせる */
+/* 作業エリアの要素は表示範囲と同じ大きさ（論理座標の幅・高さ。board.js の applyView で指定）にし、
+   倍率（scale）だけで画面に合わせる。中の土台・ピースは要素内の正の位置に置き、要素の外にはみ出さない */
 .work-area {
   position: absolute;
   left: 0;
@@ -155,10 +156,10 @@ body {
   stroke-width: 4;
 }
 
+/* ピースの入れ物は作業エリアと同じ大きさにする */
 .pieces {
   position: absolute;
-  left: 0;
-  top: 0;
+  inset: 0;
   -webkit-touch-callout: none;
 }
 

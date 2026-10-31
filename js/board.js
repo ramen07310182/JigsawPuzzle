@@ -69,8 +69,18 @@ export function computeView(layout, viewportWidth, viewportHeight, pieceCount) {
 }
 
 // 論理座標 → 画面座標：(論理座標 - 表示範囲の左上) × 倍率
+// 作業エリアの要素は表示範囲と同じ大きさにし、倍率だけで画面に合わせる。中の土台・ピースは
+// 「論理座標 - 表示範囲の左上」の位置に置く（placeBoard、pieceView.js）ので、要素の外（負の位置）にはみ出さない
 export function applyView(workArea, view) {
-  workArea.style.transform = `scale(${view.scale}) translate(${-view.x}px, ${-view.y}px)`;
+  workArea.style.width = `${view.width}px`;
+  workArea.style.height = `${view.height}px`;
+  workArea.style.transform = `scale(${view.scale})`;
+}
+
+// 土台の表示位置（作業エリアの要素内、表示範囲の左上からの位置）
+export function placeBoard(svg, layout, view) {
+  svg.style.left = `${layout.board.x - view.x}px`;
+  svg.style.top = `${layout.board.y - view.y}px`;
 }
 
 // 画面座標（clientX / clientY）→ 論理座標。viewportRect は表示領域の getBoundingClientRect()
@@ -98,8 +108,6 @@ export function renderBoard(svg, layout, edges) {
   svg.setAttribute("viewBox", `0 0 ${board.width} ${board.height}`);
   svg.setAttribute("width", board.width);
   svg.setAttribute("height", board.height);
-  svg.style.left = `${board.x}px`;
-  svg.style.top = `${board.y}px`;
 
   svg.append(createSvgElement("rect", {
     class: "board-fill",

@@ -50,16 +50,19 @@ function createPieceElement(piece, imageSrc, layout) {
 }
 
 // 位置は left/top ではなく transform で指定する（移動のたびにレイアウトをやり直さないようにする）
-export function updatePieceElement(element, piece, layout) {
-  element.style.transform = `translate(${piece.x - layout.piecePadding}px, ${piece.y - layout.piecePadding}px)`;
+// 表示位置は作業エリアの要素内の位置（論理座標 - 表示範囲の左上）。view がまだなければ原点基準
+export function updatePieceElement(element, piece, layout, view) {
+  const originX = view ? view.x : 0;
+  const originY = view ? view.y : 0;
+  element.style.transform = `translate(${piece.x - layout.piecePadding - originX}px, ${piece.y - layout.piecePadding - originY}px)`;
   element.style.zIndex = String(piece.locked ? piece.z : UNLOCKED_LAYER + piece.z);
 }
 
 // elementsById：renderPieces が返すピースID → 要素の対応表
-export function updatePiecePositions(elementsById, pieces, layout) {
+export function updatePiecePositions(elementsById, pieces, layout, view) {
   for (const piece of pieces) {
     const element = elementsById.get(piece.id);
-    if (element) updatePieceElement(element, piece, layout);
+    if (element) updatePieceElement(element, piece, layout, view);
   }
 }
 
@@ -76,12 +79,12 @@ export function findPieceId(target) {
   return element ? Number(element.dataset.pieceId) : null;
 }
 
-export function renderPieces(container, pieces, imageSrc, layout) {
+export function renderPieces(container, pieces, imageSrc, layout, view) {
   container.replaceChildren();
   const elementsById = new Map();
   for (const piece of pieces) {
     const element = createPieceElement(piece, imageSrc, layout);
-    updatePieceElement(element, piece, layout);
+    updatePieceElement(element, piece, layout, view);
     container.append(element);
     elementsById.set(piece.id, element);
   }
