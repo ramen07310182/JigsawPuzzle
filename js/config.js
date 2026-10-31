@@ -41,6 +41,8 @@ export async function loadPuzzleList(url) {
     }
     seenIds.add(entry.id);
     puzzles.push({
+      // 画像の種類（開発者が用意した画像）。ユーザーが選んだ画像は "user"（userImage.js）
+      source: "developer",
       id: entry.id,
       name: entry.name,
       image: entry.image,

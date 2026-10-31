@@ -309,6 +309,49 @@ body {
   outline-offset: 2px;
 }
 
+/* 画像の切り替え（リストボックス）と「がぞうを えらぶ」 */
+/* 幅は固定する（「えらんだ がぞう」が増えても幅が変わらず、パネルの高さ・作業エリアの大きさが変わらないように） */
+.image-select {
+  width: 10em;
+  max-width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 7px 8px;
+  color: var(--text);
+  background: var(--button-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+.image-select:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.file-button {
+  position: relative;
+  text-align: center;
+}
+
+/* ファイル入力は見えなくし、ラベル（ボタンの見た目）のクリック・タップで選択画面を開く */
+.file-button:focus-within {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* 音量（ラベルとスライダー） */
 .volume-control {
   display: flex;
@@ -375,6 +418,11 @@ body {
   }
 
   .volume-slider {
+    width: 100%;
+  }
+
+  /* 右側の縦長パネルでは、パネル幅いっぱいにする（狭い画面でもパネルからはみ出さない） */
+  .image-select {
     width: 100%;
   }
 

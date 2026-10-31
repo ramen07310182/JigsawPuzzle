@@ -11,6 +11,7 @@ import { isPuzzleComplete, resetPieces } from "./puzzleState.js";
 import { preventDoubleTapZoom } from "./doubleTapGuard.js";
 import { chooseSound, createSoundPlayer } from "./sound.js";
 import { loadSoundSettings, saveSoundSettings } from "./soundSettings.js";
+import { prepareUserImage, createUserPuzzle, getUserImageMessage } from "./userImage.js";
 
 const PUZZLE_LIST_URL = "data/puzzles.json";
 
@@ -32,7 +33,12 @@ const elements = {
   restartButton: document.getElementById("restart-button"),
   soundToggle: document.getElementById("sound-toggle"),
   soundVolume: document.getElementById("sound-volume"),
+  imageSelect: document.getElementById("image-select"),
+  imageFile: document.getElementById("image-file"),
 };
+
+// リストボックスで、ユーザーが選んだ画像を表す値
+const USER_OPTION_VALUE = "user";
 
 // 効果音の設定（音量0〜100・ミュート）。前回の設定を読み込み、変更するたびに保存する
 const soundSettings = loadSoundSettings();
@@ -53,6 +59,12 @@ const state = {
   needsScatter: false,
   // 完成済み（完成演出を1回の完成につき1回だけにするため。「最初から遊ぶ」で false に戻す）
   completed: false,
+  // 開発者が用意した画像の一覧（data/puzzles.json）
+  developerPuzzles: [],
+  // さいごに選んだユーザーの画像（1枚だけ。再読み込みで消える）
+  userPuzzle: null,
+  // 画像の読み込みの番号。短時間に何度も選んだ場合、さいごの読み込みだけを反映する
+  loadToken: 0,
 };
 
 // ピース・グループを最前面にする。グループ内の重なり順は保つ
@@ -241,32 +253,45 @@ function updateLayout() {
   drag.handleViewChange();
 }
 
+// 画像を読み込んでから、今のパズルと入れ替える
+// 読み込みに失敗した場合や、その間に別の画像が選ばれた場合は今のパズルを残す。入れ替えたら true を返す
 async function showPuzzle(puzzle) {
-  drag.cancel();
-  state.puzzle = puzzle;
-  state.layout = null;
-  state.pieces = [];
-  state.pieceElements = new Map();
-  state.view = null;
-  state.completed = false;
-  closePreview();
-  closeCompletion();
-  elements.pieces.replaceChildren();
-  elements.workArea.hidden = true;
-  elements.thumbnailButton.hidden = true;
-  elements.message.hidden = true;
-  elements.puzzleName.textContent = puzzle.name;
-  elements.placedCount.textContent = "0";
-  elements.totalCount.textContent = String(puzzle.cols * puzzle.rows);
-
+  const token = ++state.loadToken;
   let image;
   try {
     image = await loadImage(puzzle.image);
   } catch (error) {
-    showError(error.message);
-    return;
+    if (token !== state.loadToken) return false;
+    if (state.puzzle) {
+      console.warn(error.message);
+      window.alert(getUserImageMessage(null));
+    } else {
+      // 最初の画像を読み込めなかった場合（遊べるパズルがまだない）
+      elements.puzzleName.textContent = puzzle.name;
+      elements.totalCount.textContent = String(puzzle.cols * puzzle.rows);
+      showError(error.message);
+    }
+    return false;
   }
+  if (token !== state.loadToken) return false;
+  applyPuzzle(puzzle, image);
+  return true;
+}
 
+// 読み込んだ画像でパズルを作り直す。ピース・結合・固定・完成状態・表示順・鳴っている効果音を初期化する
+// 音量・ミュートの設定はそのまま
+function applyPuzzle(puzzle, image) {
+  drag.cancel();
+  sound.stopAll();
+  closePreview();
+  closeCompletion();
+  state.puzzle = puzzle;
+  state.view = null;
+  state.completed = false;
+  elements.message.hidden = true;
+  elements.puzzleName.textContent = puzzle.name;
+  elements.placedCount.textContent = "0";
+  elements.totalCount.textContent = String(puzzle.cols * puzzle.rows);
   elements.thumbnail.src = image.src;
   elements.thumbnailButton.hidden = false;
 
@@ -280,6 +305,72 @@ async function showPuzzle(puzzle) {
 
   state.needsScatter = true;
   updateLayout();
+  renderImageSelect();
+}
+
+// 固定済みのピースがあるときだけ、画像を変える前に確認する
+function confirmImageChange() {
+  if (!state.pieces.some((piece) => piece.locked)) return true;
+  return window.confirm("いまの パズルを やめて、ちがう がぞうで あそぶ？");
+}
+
+// リストボックスに、開発者の画像と、さいごに選んだユーザーの画像を並べ、今の画像を選択状態にする
+function renderImageSelect() {
+  const options = state.developerPuzzles.map((puzzle) => new Option(puzzle.name, puzzle.id));
+  if (state.userPuzzle) options.push(new Option(state.userPuzzle.name, USER_OPTION_VALUE));
+  elements.imageSelect.replaceChildren(...options);
+  if (state.puzzle) {
+    elements.imageSelect.value = state.puzzle.source === "user" ? USER_OPTION_VALUE : state.puzzle.id;
+  }
+}
+
+// リストボックスで画像を切り替える
+async function changeImageFromList() {
+  const value = elements.imageSelect.value;
+  const puzzle = value === USER_OPTION_VALUE
+    ? state.userPuzzle
+    : state.developerPuzzles.find((entry) => entry.id === value);
+  if (!puzzle || puzzle === state.puzzle) {
+    // 今の画像を選び直した場合は、読み込み中の別の画像も反映しない（さいごの操作だけを反映する）
+    state.loadToken += 1;
+    renderImageSelect();
+    return;
+  }
+  if (!confirmImageChange()) {
+    renderImageSelect();
+    return;
+  }
+  await showPuzzle(puzzle);
+  renderImageSelect();
+}
+
+// 端末から選んだ画像でパズルを作る。画像は端末内だけで処理し、外部へは送信しない
+async function selectUserImage(file) {
+  const token = ++state.loadToken;
+  let prepared;
+  try {
+    prepared = await prepareUserImage(file);
+  } catch (error) {
+    if (token !== state.loadToken) return;
+    console.warn("選んだ画像を使えませんでした", error);
+    window.alert(getUserImageMessage(error));
+    return;
+  }
+  // 準備中に別の画像が選ばれた場合や、確認でキャンセルした場合は使わない
+  if (token !== state.loadToken || !confirmImageChange()) {
+    URL.revokeObjectURL(prepared.url);
+    return;
+  }
+  const puzzle = createUserPuzzle(prepared.url);
+  if (!(await showPuzzle(puzzle))) {
+    URL.revokeObjectURL(prepared.url);
+    return;
+  }
+  // 入れ替えが済んでから、前に選んだ画像の URL を解放する（今の画像の URL は解放しない）
+  const previous = state.userPuzzle;
+  state.userPuzzle = puzzle;
+  if (previous) URL.revokeObjectURL(previous.image);
+  renderImageSelect();
 }
 
 async function init() {
@@ -309,6 +400,13 @@ async function init() {
     saveSoundSettings(soundSettings);
   });
   watchSoundUnlock();
+  elements.imageSelect.addEventListener("change", changeImageFromList);
+  elements.imageFile.addEventListener("change", () => {
+    const file = elements.imageFile.files?.[0];
+    // 同じファイルをもう一度選んだときも change が起きるように空にする（キャンセル時は何もしない）
+    elements.imageFile.value = "";
+    if (file) selectUserImage(file);
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closePreview();
@@ -327,6 +425,8 @@ async function init() {
     return;
   }
 
+  state.developerPuzzles = puzzles;
+  renderImageSelect();
   await showPuzzle(puzzles[0]);
 }
 

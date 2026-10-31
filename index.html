@@ -24,8 +24,14 @@
       <span id="puzzle-name" class="puzzle-name">読み込み中…</span>
       <span class="progress">完成 <span id="placed-count">0</span> / <span id="total-count">0</span></span>
     </div>
-    <!-- 画像切り替え・セーブ／ロード・アシストは、各開発手順でここに追加する -->
+    <!-- セーブ／ロード・アシストは、各開発手順でここに追加する -->
     <div id="panel-controls" class="panel-controls">
+      <!-- 画像の切り替え（サンプルと、さいごに えらんだ がぞう）。選んだ画像は端末内だけで使い、送信しない -->
+      <select id="image-select" class="image-select" aria-label="がぞうを きりかえる"></select>
+      <label class="panel-button file-button">
+        がぞうを えらぶ
+        <input id="image-file" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp">
+      </label>
       <!-- 効果音のON／OFF（今の状態を表示する）と音量（すべての効果音で共通） -->
       <button id="sound-toggle" class="panel-button" type="button" aria-pressed="true">おと ON</button>
       <label class="volume-control">
