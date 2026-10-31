@@ -110,6 +110,9 @@ export function createDragController({ viewport, getContext, onStart, onMove, on
       const distance = Math.hypot(event.clientX - session.startX, event.clientY - session.startY);
       if (distance < DRAG_START_DISTANCE) return;
       session.dragging = true;
+      // 開始判定までの移動分でピースが跳ばないよう、開始時点の指の位置でつかんだ位置との差を取り直す
+      const point = toLogical(event.clientX, event.clientY);
+      session.grabOffset = { x: point.x - session.anchor.x, y: point.y - session.anchor.y };
       onStart(session.members);
     }
     scheduleMove(session);

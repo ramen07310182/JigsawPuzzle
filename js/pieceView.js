@@ -49,9 +49,9 @@ function createPieceElement(piece, imageSrc, layout) {
   return svg;
 }
 
+// 位置は left/top ではなく transform で指定する（移動のたびにレイアウトをやり直さないようにする）
 export function updatePieceElement(element, piece, layout) {
-  element.style.left = `${piece.x - layout.piecePadding}px`;
-  element.style.top = `${piece.y - layout.piecePadding}px`;
+  element.style.transform = `translate(${piece.x - layout.piecePadding}px, ${piece.y - layout.piecePadding}px)`;
   element.style.zIndex = String(piece.locked ? piece.z : UNLOCKED_LAYER + piece.z);
 }
 

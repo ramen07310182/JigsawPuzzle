@@ -1,4 +1,6 @@
+/* 配色はライトのみ。端末の外観設定（ダークモード）やブラウザの自動ダーク化に関係なく同じ配色で表示する */
 :root {
+  color-scheme: only light;
   --bg: #e9e5dc;
   --text: #2b2a27;
   --panel-bg: #f8f6f1;
@@ -18,26 +20,6 @@
   /* 完成図サムネイルの最大サイズ：タブレット縦144px（横長176px、狭い画面72pxは下のメディアクエリで切り替え） */
   --thumbnail-size: 144px;
   --panel-padding: 16px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1f1e1c;
-    --text: #ebe7df;
-    --panel-bg: #2a2926;
-    --panel-border: #403d37;
-    --work-bg: #2f2d29;
-    --board-bg: #3a3833;
-    --board-frame: #c9bc9f;
-    --board-grid: #6e6757;
-    --error-bg: #3a2220;
-    --error-text: #ffb4a8;
-    --error-border: #7a3a32;
-    --focus-ring: #8cbcf0;
-    --piece-edge: rgba(0, 0, 0, 0.5);
-    --piece-shadow: rgba(0, 0, 0, 0.6);
-    --piece-shadow-dragging: rgba(0, 0, 0, 0.8);
-  }
 }
 
 * {
@@ -181,8 +163,11 @@ body {
 }
 
 /* ピース要素（凹凸用の余白を含む四角形）と画像は当たり判定に使わず、輪郭パスの内側だけで判定する */
+/* 位置は transform で指定する（pieceView.js の updatePieceElement） */
 .piece {
   position: absolute;
+  left: 0;
+  top: 0;
   overflow: visible;
   pointer-events: none;
   filter: drop-shadow(0 2px 3px var(--piece-shadow));
