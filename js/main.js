@@ -169,6 +169,16 @@ async function showPuzzle(puzzle) {
 }
 
 async function init() {
+  // URL に ?debug=1 があるときだけ、タッチ操作の診断表示を読み込む（通常は読み込まない）
+  if (new URLSearchParams(location.search).get("debug") === "1") {
+    try {
+      const { startTouchDebug } = await import("./touchDebug.js");
+      startTouchDebug(elements.viewport);
+    } catch (error) {
+      console.warn("診断表示を読み込めませんでした", error);
+    }
+  }
+
   new ResizeObserver(updateLayout).observe(elements.viewport);
   // iPad Safari のダブルタップズームを、作業エリアの中だけ打ち消す
   preventDoubleTapZoom(elements.viewport);
