@@ -1,6 +1,8 @@
 // ピースの描画：元画像の対応部分をピースの形で切り抜いて表示する
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+// 未固定ピースの表示順に加える値。固定済みピースを z に関係なく常に未固定ピースより背面にする
+const UNLOCKED_LAYER = 1000000;
 
 function createSvgElement(name, attributes) {
   const element = document.createElementNS(SVG_NS, name);
@@ -10,6 +12,7 @@ function createSvgElement(name, attributes) {
   return element;
 }
 
+// 当たり判定は輪郭パス（piece-outline）の内側だけ。SVG要素と画像は判定に使わない（CSSで設定）
 function createPieceElement(piece, imageSrc, layout) {
   const { board, cellWidth, cellHeight, piecePadding } = layout;
   const width = cellWidth + piecePadding * 2;
@@ -49,20 +52,38 @@ function createPieceElement(piece, imageSrc, layout) {
 export function updatePieceElement(element, piece, layout) {
   element.style.left = `${piece.x - layout.piecePadding}px`;
   element.style.top = `${piece.y - layout.piecePadding}px`;
+  element.style.zIndex = String(piece.locked ? piece.z : UNLOCKED_LAYER + piece.z);
 }
 
-export function updatePiecePositions(container, pieces, layout) {
+// elementsById：renderPieces が返すピースID → 要素の対応表
+export function updatePiecePositions(elementsById, pieces, layout) {
   for (const piece of pieces) {
-    const element = container.querySelector(`[data-piece-id="${piece.id}"]`);
+    const element = elementsById.get(piece.id);
     if (element) updatePieceElement(element, piece, layout);
   }
 }
 
+export function setPiecesDragging(elementsById, pieces, dragging) {
+  for (const piece of pieces) {
+    elementsById.get(piece.id)?.classList.toggle("is-dragging", dragging);
+  }
+}
+
+// 押された要素からピースIDを取り出す。ピースの形の内側でなければ null
+export function findPieceId(target) {
+  if (!(target instanceof Element) || !target.classList.contains("piece-outline")) return null;
+  const element = target.closest("[data-piece-id]");
+  return element ? Number(element.dataset.pieceId) : null;
+}
+
 export function renderPieces(container, pieces, imageSrc, layout) {
   container.replaceChildren();
+  const elementsById = new Map();
   for (const piece of pieces) {
     const element = createPieceElement(piece, imageSrc, layout);
     updatePieceElement(element, piece, layout);
     container.append(element);
+    elementsById.set(piece.id, element);
   }
+  return elementsById;
 }

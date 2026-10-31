@@ -14,6 +14,7 @@
   --preview-backdrop: rgba(0, 0, 0, 0.82);
   --piece-edge: rgba(0, 0, 0, 0.35);
   --piece-shadow: rgba(0, 0, 0, 0.3);
+  --piece-shadow-dragging: rgba(0, 0, 0, 0.5);
   /* 完成図サムネイルの最大サイズ：タブレット縦144px（横長176px、狭い画面72pxは下のメディアクエリで切り替え） */
   --thumbnail-size: 144px;
   --panel-padding: 16px;
@@ -35,6 +36,7 @@
     --focus-ring: #8cbcf0;
     --piece-edge: rgba(0, 0, 0, 0.5);
     --piece-shadow: rgba(0, 0, 0, 0.6);
+    --piece-shadow-dragging: rgba(0, 0, 0, 0.8);
   }
 }
 
@@ -175,18 +177,37 @@ body {
   position: absolute;
   left: 0;
   top: 0;
+  -webkit-touch-callout: none;
 }
 
+/* ピース要素（凹凸用の余白を含む四角形）と画像は当たり判定に使わず、輪郭パスの内側だけで判定する */
 .piece {
   position: absolute;
   overflow: visible;
+  pointer-events: none;
   filter: drop-shadow(0 2px 3px var(--piece-shadow));
+}
+
+.piece image {
+  pointer-events: none;
 }
 
 .piece-outline {
   fill: none;
   stroke: var(--piece-edge);
   stroke-width: 1.5;
+  pointer-events: fill;
+  cursor: grab;
+}
+
+/* ドラッグ中：拡大はせず、影を濃くして持ち上げていることを示す */
+.piece.is-dragging {
+  filter: drop-shadow(0 6px 10px var(--piece-shadow-dragging));
+}
+
+.viewport.is-dragging,
+.viewport.is-dragging .piece-outline {
+  cursor: grabbing;
 }
 
 .message {

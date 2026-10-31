@@ -193,6 +193,8 @@ export function createPieces(layout, edges) {
         y: correctY,
         groupId: row * cols + col,
         locked: false,
+        // 表示順（大きいほど手前）。セーブ対象
+        z: row * cols + col,
       });
     }
   }

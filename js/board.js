@@ -73,6 +73,14 @@ export function applyView(workArea, view) {
   workArea.style.transform = `scale(${view.scale}) translate(${-view.x}px, ${-view.y}px)`;
 }
 
+// 画面座標（clientX / clientY）→ 論理座標。viewportRect は表示領域の getBoundingClientRect()
+export function clientToLogical(view, viewportRect, clientX, clientY) {
+  return {
+    x: view.x + (clientX - viewportRect.left) / view.scale,
+    y: view.y + (clientY - viewportRect.top) / view.scale,
+  };
+}
+
 function createSvgElement(name, attributes) {
   const element = document.createElementNS(SVG_NS, name);
   for (const [key, value] of Object.entries(attributes)) {

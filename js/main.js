@@ -1,10 +1,11 @@
-// 起動処理：設定と画像を読み込み、土台とピースを表示する
+// 起動処理：設定と画像を読み込み、土台とピースを表示する。ピースのドラッグ操作を組み込む
 
 import { loadPuzzleList } from "./config.js";
 import { computeLayout, computeView, applyView, renderBoard } from "./board.js";
 import { createPuzzleEdges, createPieces } from "./pieces.js";
-import { scatterPieces, keepPiecesInView } from "./placement.js";
-import { renderPieces, updatePiecePositions } from "./pieceView.js";
+import { scatterPieces, keepPiecesInView, relocateHiddenPieces } from "./placement.js";
+import { renderPieces, updatePiecePositions, setPiecesDragging } from "./pieceView.js";
+import { createDragController } from "./drag.js";
 
 const PUZZLE_LIST_URL = "data/puzzles.json";
 
@@ -28,11 +29,44 @@ const state = {
   puzzle: null,
   layout: null,
   pieces: [],
+  // ピースID → 表示要素
+  pieceElements: new Map(),
+  // 次に最前面へ出すときに使う表示順の値
+  nextZ: 0,
   // 画面に見えている範囲（論理座標）と表示倍率
   view: null,
   // 初期配置がまだ済んでいない（表示領域の大きさが決まる前に読み込んだ場合）
   needsScatter: false,
 };
+
+// ピース・グループを最前面にする。グループ内の重なり順は保つ
+function bringToFront(members) {
+  const ordered = [...members].sort((a, b) => a.z - b.z);
+  for (const piece of ordered) {
+    piece.z = state.nextZ;
+    state.nextZ += 1;
+  }
+}
+
+const drag = createDragController({
+  viewport: elements.viewport,
+  getContext: () => ({ pieces: state.pieces, layout: state.layout, view: state.view }),
+  onStart(members) {
+    bringToFront(members);
+    setPiecesDragging(state.pieceElements, members, true);
+    updatePiecePositions(state.pieceElements, members, state.layout);
+    elements.viewport.classList.add("is-dragging");
+  },
+  onMove(members) {
+    updatePiecePositions(state.pieceElements, members, state.layout);
+  },
+  onEnd(members) {
+    setPiecesDragging(state.pieceElements, members, false);
+    elements.viewport.classList.remove("is-dragging");
+    const moved = relocateHiddenPieces(members, state.pieces, state.layout, state.view);
+    updatePiecePositions(state.pieceElements, [...members, ...moved], state.layout);
+  },
+});
 
 function showError(text) {
   elements.message.textContent = text;
@@ -51,6 +85,8 @@ function loadImage(src) {
 // 完成図の拡大表示。表示中は背後の画面を inert にして操作できなくする
 function openPreview() {
   if (elements.thumbnailButton.hidden) return;
+  // ドラッグ中に開くと作業エリアが操作できなくなり、ドラッグが終わらないため先に終了させる
+  drag.cancel();
   elements.previewImage.src = elements.thumbnail.src;
   elements.preview.hidden = false;
   elements.panel.inert = true;
@@ -84,15 +120,19 @@ function updateLayout() {
     scatterPieces(state.pieces, state.layout, view);
     state.needsScatter = false;
   } else {
-    keepPiecesInView(state.pieces, state.layout, view);
+    // ドラッグ中のグループは押し戻さず、ドラッグ処理側で新しい表示範囲に合わせる
+    keepPiecesInView(state.pieces, state.layout, view, { excludeGroupId: drag.draggingGroupId() });
   }
-  updatePiecePositions(elements.pieces, state.pieces, state.layout);
+  updatePiecePositions(state.pieceElements, state.pieces, state.layout);
+  drag.handleViewChange();
 }
 
 async function showPuzzle(puzzle) {
+  drag.cancel();
   state.puzzle = puzzle;
   state.layout = null;
   state.pieces = [];
+  state.pieceElements = new Map();
   state.view = null;
   closePreview();
   elements.pieces.replaceChildren();
@@ -119,7 +159,8 @@ async function showPuzzle(puzzle) {
   renderBoard(elements.board, state.layout, edges);
 
   state.pieces = createPieces(state.layout, edges);
-  renderPieces(elements.pieces, state.pieces, image.src, state.layout);
+  state.nextZ = Math.max(...state.pieces.map((piece) => piece.z)) + 1;
+  state.pieceElements = renderPieces(elements.pieces, state.pieces, image.src, state.layout);
 
   state.needsScatter = true;
   updateLayout();
@@ -133,6 +174,8 @@ async function init() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closePreview();
   });
+  // ウィンドウからフォーカスが外れた（指を離した通知が届かない可能性がある）場合はドラッグを終了する
+  window.addEventListener("blur", () => drag.cancel());
 
   let puzzles;
   try {
