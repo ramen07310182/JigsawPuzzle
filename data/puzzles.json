@@ -1,0 +1,11 @@
+{
+  "puzzles": [
+    {
+      "id": "sample",
+      "name": "サンプル",
+      "image": "images/sample.jpg",
+      "cols": 3,
+      "rows": 3
+    }
+  ]
+}

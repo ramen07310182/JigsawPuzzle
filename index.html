@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>ジグソーパズル</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main id="viewport" class="viewport">
+    <div id="work-area" class="work-area" hidden>
+      <svg id="board" class="board" aria-label="土台"></svg>
+      <div id="pieces" class="pieces"></div>
+    </div>
+    <p id="message" class="message" role="alert" hidden></p>
+  </main>
+
+  <aside id="panel" class="panel" aria-label="操作パネル">
+    <button id="thumbnail-button" class="thumbnail-button" type="button" aria-label="完成図を拡大表示" hidden>
+      <img id="thumbnail" class="thumbnail" alt="完成図">
+    </button>
+    <div class="puzzle-info">
+      <span id="puzzle-name" class="puzzle-name">読み込み中…</span>
+      <span class="progress">完成 <span id="placed-count">0</span> / <span id="total-count">0</span></span>
+    </div>
+    <!-- 画像切り替え・セーブ／ロード・アシスト・音量・最初から遊ぶは、各開発手順でここに追加する -->
+    <div id="panel-controls" class="panel-controls"></div>
+  </aside>
+
+  <div id="preview" class="preview" role="dialog" aria-modal="true" aria-label="完成図の拡大表示" tabindex="-1" hidden>
+    <img id="preview-image" class="preview-image" alt="完成図（拡大）">
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

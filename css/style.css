@@ -1,0 +1,289 @@
+:root {
+  --bg: #e9e5dc;
+  --text: #2b2a27;
+  --panel-bg: #f8f6f1;
+  --panel-border: #d4cfc3;
+  --work-bg: #d9d3c5;
+  --board-bg: #f4f1ea;
+  --board-frame: #6b604c;
+  --board-grid: #b3a990;
+  --error-bg: #fff3f1;
+  --error-text: #a3261a;
+  --error-border: #e2a59c;
+  --focus-ring: #2f6fb0;
+  --preview-backdrop: rgba(0, 0, 0, 0.82);
+  --piece-edge: rgba(0, 0, 0, 0.35);
+  --piece-shadow: rgba(0, 0, 0, 0.3);
+  /* 完成図サムネイルの最大サイズ：タブレット縦144px（横長176px、狭い画面72pxは下のメディアクエリで切り替え） */
+  --thumbnail-size: 144px;
+  --panel-padding: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1f1e1c;
+    --text: #ebe7df;
+    --panel-bg: #2a2926;
+    --panel-border: #403d37;
+    --work-bg: #2f2d29;
+    --board-bg: #3a3833;
+    --board-frame: #c9bc9f;
+    --board-grid: #6e6757;
+    --error-bg: #3a2220;
+    --error-text: #ffb4a8;
+    --error-border: #7a3a32;
+    --focus-ring: #8cbcf0;
+    --piece-edge: rgba(0, 0, 0, 0.5);
+    --piece-shadow: rgba(0, 0, 0, 0.6);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+/* 縦長の画面：操作パネルを上部、作業エリアをその下に置く */
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 操作パネル（完成図サムネイル・パズル情報・今後追加する各種操作） */
+.panel {
+  order: -1;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px var(--panel-padding);
+  padding-top: max(8px, env(safe-area-inset-top));
+  padding-left: max(var(--panel-padding), env(safe-area-inset-left));
+  padding-right: max(var(--panel-padding), env(safe-area-inset-right));
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.thumbnail-button {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 0;
+  border-radius: 6px;
+  cursor: zoom-in;
+}
+
+.thumbnail-button:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* 縦横比を維持したまま最大サイズ内に収める */
+.thumbnail {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: var(--thumbnail-size);
+  max-height: var(--thumbnail-size);
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+}
+
+.puzzle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.puzzle-name {
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.progress {
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* 作業エリアの表示領域（操作パネル以外の全体）。ピース操作とスクロールが干渉しないようにする */
+.viewport {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--work-bg);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 作業エリアの中身は土台の左上を原点とする論理座標で置き、transformで表示範囲・倍率に合わせる */
+.work-area {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+
+.board {
+  position: absolute;
+  overflow: visible;
+}
+
+.board-fill {
+  fill: var(--board-bg);
+}
+
+.board-grid {
+  fill: none;
+  stroke: var(--board-grid);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.board-frame {
+  fill: none;
+  stroke: var(--board-frame);
+  stroke-width: 4;
+}
+
+.pieces {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.piece {
+  position: absolute;
+  overflow: visible;
+  filter: drop-shadow(0 2px 3px var(--piece-shadow));
+}
+
+.piece-outline {
+  fill: none;
+  stroke: var(--piece-edge);
+  stroke-width: 1.5;
+}
+
+.message {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(90%, 480px);
+  margin: 0;
+  padding: 16px 20px;
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+  border-radius: 8px;
+  line-height: 1.6;
+}
+
+/* 完成図の拡大表示 */
+.preview {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: var(--preview-backdrop);
+  cursor: zoom-out;
+  touch-action: none;
+}
+
+.preview[hidden] {
+  display: none;
+}
+
+.preview:focus {
+  outline: none;
+}
+
+.preview-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* 横長の画面：操作パネルを右側の縦長パネルにする。項目が増えたらパネル内でスクロールする */
+@media (orientation: landscape) {
+  :root {
+    --thumbnail-size: 176px;
+  }
+
+  body {
+    flex-direction: row;
+  }
+
+  .panel {
+    order: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    width: calc(var(--thumbnail-size) + var(--panel-padding) * 2);
+    overflow-y: auto;
+    padding: var(--panel-padding);
+    padding-top: max(var(--panel-padding), env(safe-area-inset-top));
+    padding-bottom: max(var(--panel-padding), env(safe-area-inset-bottom));
+    padding-left: var(--panel-padding);
+    padding-right: max(var(--panel-padding), env(safe-area-inset-right));
+    border-bottom: none;
+    border-left: 1px solid var(--panel-border);
+  }
+
+  .puzzle-info,
+  .panel-controls {
+    width: 100%;
+  }
+
+  .panel-controls {
+    flex-direction: column;
+  }
+
+  .puzzle-name {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* 狭い画面（スマホ）：コンパクトな操作パネル */
+@media (max-width: 600px), (max-height: 500px) {
+  :root {
+    --thumbnail-size: 72px;
+    --panel-padding: 12px;
+  }
+
+  .panel {
+    gap: 8px;
+    padding-top: max(6px, env(safe-area-inset-top));
+    padding-bottom: 6px;
+  }
+}
