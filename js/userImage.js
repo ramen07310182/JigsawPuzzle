@@ -16,9 +16,6 @@ export const USER_PUZZLE_COLS = 3;
 export const USER_PUZZLE_ROWS = 3;
 
 const JPEG_QUALITY = 0.9;
-// 保存する画像のサムネイル（手順11の一覧用）：長辺240px以下、JPEG品質0.8
-export const THUMBNAIL_LONG_SIDE = 240;
-const THUMBNAIL_QUALITY = 0.8;
 
 // 画面に出すエラー（6歳児向けにひらがな）
 export const USER_IMAGE_MESSAGES = {
@@ -67,36 +64,18 @@ function decodeImage(url) {
   });
 }
 
-function canvasToBlob(canvas, quality = JPEG_QUALITY) {
+function canvasToBlob(canvas) {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
       else reject(new UserImageError("unsupported", "画像を変換できませんでした"));
-    }, "image/jpeg", quality);
+    }, "image/jpeg", JPEG_QUALITY);
   });
 }
 
-// サムネイルの大きさ（長辺240px以下。小さい画像は拡大しない）
-export function computeThumbnailSize(width, height) {
-  const scale = Math.min(1, THUMBNAIL_LONG_SIDE / Math.max(width, height));
-  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
-}
-
-// 加工後のJPEGデータの SHA-256（16進数）。同じ画像の判定に使う（ファイル名は使わない）
-// 計算できない環境では null（その場合は保存を使わない）
-export async function computeImageHash(blob) {
-  try {
-    if (!globalThis.crypto?.subtle?.digest) return null;
-    const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
-    return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-  } catch (error) {
-    console.warn("画像のハッシュを計算できませんでした", error);
-    return null;
-  }
-}
-
-// 選んだファイルから、パズル用の画像（加工後のJPEG Blob）とサムネイル・ハッシュを作る。失敗したら UserImageError を投げる
-// 戻り値：{ blob, thumbnail, width, height, hash }。表示用の Object URL は呼び出し側で作り、不要になったら解放する
+// 選んだファイルから、パズル用の画像（加工後のJPEG Blob）を作る。失敗したら UserImageError を投げる
+// 画像はブラウザのメモリ上で一時的に使うだけで、保存も外部への送信もしない
+// 戻り値：{ blob, width, height }。表示用の Object URL は呼び出し側で作り、不要になったら解放する
 export async function prepareUserImage(file) {
   if (!file) throw new UserImageError("unsupported", "ファイルがありません");
   if (file.size > MAX_FILE_BYTES) throw new UserImageError("too-large", `${file.size} バイト`);
@@ -122,23 +101,10 @@ export async function prepareUserImage(file) {
     context.fillRect(0, 0, crop.width, crop.height);
     context.drawImage(image, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.width, crop.height);
     const blob = await canvasToBlob(canvas);
-    // サムネイルは加工後の画像から作る（長辺240px以下、JPEG品質0.8）
-    const thumbSize = computeThumbnailSize(crop.width, crop.height);
-    const thumbCanvas = document.createElement("canvas");
-    thumbCanvas.width = thumbSize.width;
-    thumbCanvas.height = thumbSize.height;
-    const thumbContext = thumbCanvas.getContext("2d");
-    if (!thumbContext) throw new UserImageError("unsupported", "キャンバスを使えません");
-    thumbContext.imageSmoothingQuality = "high";
-    thumbContext.drawImage(canvas, 0, 0, thumbSize.width, thumbSize.height);
-    const thumbnail = await canvasToBlob(thumbCanvas, THUMBNAIL_QUALITY);
     // iPad のメモリを早めに空ける
     canvas.width = 0;
     canvas.height = 0;
-    thumbCanvas.width = 0;
-    thumbCanvas.height = 0;
-    const hash = await computeImageHash(blob);
-    return { blob, thumbnail, width: crop.width, height: crop.height, hash };
+    return { blob, width: crop.width, height: crop.height };
   } catch (error) {
     if (error instanceof UserImageError) throw error;
     throw new UserImageError("unsupported", String(error));
@@ -158,17 +124,14 @@ export function createUserImageId() {
 }
 
 // 選んだ画像のパズル設定（開発者の画像の設定と同じ形）
-// id：保存した画像はその画像ID（変えない）。保存しない一時プレイでは新しく作る
-// hash：加工後JPEGのハッシュ（今遊んでいる画像と同じ画像かの判定に使う）。stored：IndexedDB に保存済みか
-export function createUserPuzzle(url, { id = createUserImageId(), hash = null, stored = false } = {}) {
+// 画像を選ぶたびに新しい画像IDを作る（同じ画像を選び直しても、新しいパズルとして始める）
+export function createUserPuzzle(url) {
   return {
     source: "user",
-    id,
+    id: createUserImageId(),
     name: USER_PUZZLE_NAME,
     image: url,
     cols: USER_PUZZLE_COLS,
     rows: USER_PUZZLE_ROWS,
-    hash,
-    stored,
   };
 }
