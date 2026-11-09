@@ -3,8 +3,11 @@
 // 選べるピース数と、その列数・行数（どの画像でも共通）。最初は先頭（9ピース）
 export const PIECE_COUNT_OPTIONS = Object.freeze([
   Object.freeze({ count: 9, cols: 3, rows: 3 }),
+  Object.freeze({ count: 16, cols: 4, rows: 4 }),
   Object.freeze({ count: 30, cols: 6, rows: 5 }),
+  Object.freeze({ count: 50, cols: 10, rows: 5 }),
   Object.freeze({ count: 70, cols: 10, rows: 7 }),
+  Object.freeze({ count: 100, cols: 10, rows: 10 }),
 ]);
 
 export function findPieceCountOption(count) {
